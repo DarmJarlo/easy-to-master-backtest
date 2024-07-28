@@ -1,0 +1,28 @@
+class Trader:
+    def __init__(self):
+        self.open = 0
+        self.high = 0
+        self.low = 0
+        self.close = 0
+        self.volume = 0
+        self.position = 0
+        self.stop_loss = 0
+        self.volume_sum_30s = 0
+
+    def update(self, kline):
+        self.open = float(kline[1])
+        self.high = float(kline[2])
+        self.low = float(kline[3])
+        self.close = float(kline[4])
+        self.volume = float(kline[5])
+
+    def should_enter(self):
+        # 实现您的入场逻辑
+        return self.close > self.open
+
+    def should_exit(self):
+        # 实现您的出场逻辑
+        return self.close < self.stop_loss
+
+    def set_stop_loss(self):
+        self.stop_loss = self.close * 0.99  # 设置1%的止损
