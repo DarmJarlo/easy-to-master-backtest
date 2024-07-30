@@ -8,6 +8,8 @@ class Trader:
         self.position = 0
         self.stop_loss = 0
         self.volume_sum_30s = 0
+        self.timestamp = 0
+        self.volume_30s = []
 
     def update(self, kline):
         self.open = float(kline[1])
@@ -15,14 +17,24 @@ class Trader:
         self.low = float(kline[3])
         self.close = float(kline[4])
         self.volume = float(kline[5])
+        if len(self.volume_30s) < 30
+            self.volume_30s.append(self.volume)
+        elif len(self.volume_30s) == 30:
+            self.volume_30s.pop(0)
+            self.volume_30s.append(self.volume)
 
-    def should_enter(self):
-        # 实现您的入场逻辑
-        return self.close > self.open
+    def write_record(trade_amount):
+        with open('trade_log.txt', 'a') as f:
+            f.write(f"{self.timestamp}: {trade_amount} @ {price}\n")
 
-    def should_exit(self):
-        # 实现您的出场逻辑
-        return self.close < self.stop_loss
+    @abstractmethod
+    def should_enter(self, kline):
+        pass
 
-    def set_stop_loss(self):
-        self.stop_loss = self.close * 0.99  # 设置1%的止损
+    @abstractmethod
+    def should_exit(self, kline, stop_loss):
+        pass
+
+    @abstractmethod
+    def set_stop_loss(self, kline):
+        pass
