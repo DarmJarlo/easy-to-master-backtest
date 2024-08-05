@@ -1,0 +1,58 @@
+class Trader:
+    def __init__(self):
+        self.cash = 50
+        
+        self.smallest_amount = 0
+        self.open = 0
+        self.high = 0
+        self.low = 0
+        self.close = 0
+        self.volume = 0
+        #self.position_record = {} #record all holding position: 0timestamp,1amount,2price,3action
+        self.position = {}
+
+        self.position_average = [] # calculate current position
+        self.profit = 0
+        self.profit_record = []
+        self.lever = 10
+        self.fee = 0.001
+       
+
+    def update(self, kline):
+        self.open = float(kline[1])
+        self.high = float(kline[2])
+        self.low = float(kline[3])
+        self.close = float(kline[4])
+        self.volume = float(kline[5])
+        self.volume_sum_30s = 0
+    def increment(self, previous_price):
+        return (self.last - previous_price)/self.last 
+
+    def duplication_avoid(self):
+        #if true, we cannot buy more
+        return self.position is not None and float(self.timestamp)- float(self.position[0])
+
+    def fee_calculation(self,amount):
+        return self.price * self.lever * amount * self.fee
+
+
+    @abstractmethod
+    def enter(self):
+        pass
+    
+    @abstractmethod
+    def exit(self):
+        pass
+
+    @abstractmethod
+    def set_stop_loss(self):
+        pass
+
+    def add_position_record(self):
+        file = 'trade_record.csv'
+        with open(file, mode='a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+    
+    # 写入表头（可选）
+            writer.writerow(["timestamp", "price", "交易编号"])
+    def run(self):
