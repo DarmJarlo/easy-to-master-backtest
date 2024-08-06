@@ -1,6 +1,6 @@
 class Trader:
     def __init__(self):
-        self.cash = 50
+        self.cash = 100
         
         self.smallest_amount = 0
         self.open = 0
@@ -10,14 +10,18 @@ class Trader:
         self.volume = 0
         #self.position_record = {} #record all holding position: 0timestamp,1amount,2price,3action
         self.position = {}
-
-        self.position_average = [] # calculate current position
-        self.profit = 0
-        self.profit_record = []
-        self.lever = 10
-        self.fee = 0.001
+        self.holding_orders =[] # this one for the time that we want to start a new position
+        self.exit_orders ={} # this one for the order that we would like to close the position
+        self.stop_loss_orders = {} #this one only for the lowest stop loss orders set at the startpoint of a new position
        
 
+        self.position_average = {} # calculate current position
+        self.profit = 0
+        self.profit_record = {}
+        self.lever = 10
+        self.fee = 0.001
+
+       
     def update(self, kline):
         self.open = float(kline[1])
         self.high = float(kline[2])
@@ -38,21 +42,59 @@ class Trader:
 
     @abstractmethod
     def enter(self):
+        # should contain the judgment logic about checking if a new position should be opened
+        # if yes, a new order will be added into holding_orders
+        # meanwhile the stop_loss will be set as well 
         pass
     
     @abstractmethod
     def exit(self):
+        # if an exit is triggered, a new order is added into holding_orders
         pass
 
     @abstractmethod
     def set_stop_loss(self):
         pass
-
+    
+    def add_order(self,price,amount):
+        self.holding_orders.clear() # clear unrealized orders
+        self.holding_orders[timestamp] = self.timestamp
+        self.holding_orders[price] = price
+        self.holding_orders[amount] = amount
+    def recalculate_position(self, price, quantity):
+        if self.position_average[action]==1:
+                total_cost = self.position_average[price] * self.position_average[amount] + price * quantity
+        elif self.position_average[action]==-1:
+                total_cost = -self.position_average[price] * self.position_average[amount] + price * quantity
+        self.position_average[amount] += quantity
+        if self.position_average[amount] == 0:
+            self.average_price = 0.0
+        else:
+            self.average_price = total_cost / self.position_average[amount]
     def add_position_record(self):
+        self.position_record.append(self.holding_orders)
         file = 'trade_record.csv'
+        #write the last opened position
         with open(file, mode='a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-    
-    # 写入表头（可选）
-            writer.writerow(["timestamp", "price", "交易编号"])
+            #if not os.path.exists(file):
+            #    writer.writerow(["timestamp", "price", "交易编号"])
+            writer.writerow([self.position])
+
+    def balance_calculation(self):
+        
+        
     def run(self):
+        pass
+
+    """
+    while true
+    1.update data one by one
+
+    2.calculate the conditions, 
+    -- if entry condition is met, add a new order in the holding_orders
+    3.check holding orders, if matched, 
+    -- add and recalculate positions, add to position_record
+    -- record this transaction into the csv file
+    4. go to next round
+    """

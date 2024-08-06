@@ -1,3 +1,4 @@
 Strategy_BoostVolume.py
 min_volumesreal.csv
 trade_record.csv
+.gitignore
