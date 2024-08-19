@@ -1,3 +1,4 @@
+import os
 class Trader:
     def __init__(self):
         self.cash = 100
@@ -9,7 +10,11 @@ class Trader:
         self.close = 0
         self.volume = 0
         #self.position_record = {} #record all holding position: 0timestamp,1amount,2price,3action
+        
+        #consider amount in order and position are always positive
+        
         self.position = {}
+        self.last_second_position = {}
         self.holding_orders =[] # this one for the time that we want to start a new position
         self.exit_orders ={} # this one for the order that we would like to close the position
         self.stop_loss_orders = {} #this one only for the lowest stop loss orders set at the startpoint of a new position
@@ -29,6 +34,7 @@ class Trader:
         self.close = float(kline[4])
         self.volume = float(kline[5])
         self.volume_sum_30s = 0
+
     def increment(self, previous_price):
         return (self.last - previous_price)/self.last 
 
@@ -39,62 +45,153 @@ class Trader:
     def fee_calculation(self,amount):
         return self.price * self.lever * amount * self.fee
 
+    @abstractmethod
+    def calculate_enter_price(self):
+        pass
+
+    @abstractmethod
+    def calculate_exit_price(self):
+        pass
 
     @abstractmethod
     def enter(self):
         # should contain the judgment logic about checking if a new position should be opened
         # if yes, a new order will be added into holding_orders
         # meanwhile the stop_loss will be set as well 
-        pass
+        if False:
+            self.add_order(self.last,0.1*self.cash)
+            self.stop_loss()
+        else:
+            pass
     
     @abstractmethod
     def exit(self):
         # if an exit is triggered, a new order is added into holding_orders
+        
         pass
 
     @abstractmethod
     def set_stop_loss(self):
+        # two ideas 1.only consider clearing all positions, no hierarchical solutions
+        #only clear the amount we opened this time
         pass
-    
+
     def add_order(self,price,amount):
         self.holding_orders.clear() # clear unrealized orders
-        self.holding_orders[timestamp] = self.timestamp
-        self.holding_orders[price] = price
-        self.holding_orders[amount] = amount
-    def recalculate_position(self, price, quantity):
-        if self.position_average[action]==1:
-                total_cost = self.position_average[price] * self.position_average[amount] + price * quantity
+        self.holding_orders['timestamp'] = self.timestamp
+        self.holding_orders['price'] = price
+        self.holding_orders['amount'] = amount
+    '''
+    def recalculate_position(self, order):
+        #should I transfer it to the struture of considering if the order 
+        #and the current position has the same direction ?
+        price = order['price']
+        quantity = order['amount'] * order['action']
+        if self.position_average['action']==1:
+                total_cost = self.position_average['price'] * self.position_average['amount'] + price * quantity
         elif self.position_average[action]==-1:
-                total_cost = -self.position_average[price] * self.position_average[amount] + price * quantity
+                total_cost = -self.position_average['price'] * self.position_average['amount'] + price * quantity
         self.position_average[amount] += quantity
         if self.position_average[amount] == 0:
             self.average_price = 0.0
         else:
             self.average_price = total_cost / self.position_average[amount]
-    def add_position_record(self):
-        self.position_record.append(self.holding_orders)
+    '''
+
+    def add_completion_record(self,orders):
+        self.position_record.append(orders)
         file = 'trade_record.csv'
         #write the last opened position
         with open(file, mode='a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            #if not os.path.exists(file):
-            #    writer.writerow(["timestamp", "price", "交易编号"])
-            writer.writerow([self.position])
+            if os.path.getsize(file)==0:
+                writer.writerow(["timestamp", "price", "action","amount","cash"])
+            writer.writerow([orders['timestamp'],orders['price'],orders['action'], orders['amount'],self.cash])
 
-    def balance_calculation(self):
-        
-        
-    def run(self):
-        pass
+    def recalculate_position(self,order):
+        """when an order is completed, call this function to update the balance"""
+        self.last_second_position = self.position
+        if self.position = {}:
+            self.position = order
+            return
+
+        if self.position['action'] == order['action']:
+            self.position['amount'] += order['amount']
+            cost = self.position['price'] * self.position['amount'] + order['price'] * order['amount']
+            self.position['price'] = cost/(self.position['amount']+order['amount'])
+        else:
+            self.position['amount'] = abs(self.position['amount'] - order['amount'])
+
+            if self.position['amount'] < order['amount']:
+                self.position['action'] = order['action']
+                self.position['price'] = order['price']
+            elif self.postion['amount'] == order['amount']:
+                self.position.clear()
+
+    def balance_calculation(self,order):
+        if self.last_second_position['action'] != self.position['action']:
+            closed_balance = self.last_second_position['amount'] * self.position['price']
+            open_balance = self.position['amount'] * self.position['price']
+            this_profit = closed_balance - open_balance
+            self.cash += this_profit
+            
+        elif len(self.position) == 0:
+            closed_balance = order['amount'] * order['price']
+            self.cash += closed_balance
+        else:
+            this_profit = order['amount'] * order['price']
+            self.cash -= this_profit
+
+
+    
+
+    
+    def create_trader(cls):
+        return cls()
+    def check_order_condition(self,order):
+        return order[price] < self.high and order[price] > self.low
 
     """
+    general process
     while true
-    1.update data one by one
+    1.update data one by one until all data in the clickhouse databases are loaded
 
     2.calculate the conditions, 
-    -- if entry condition is met, add a new order in the holding_orders
-    3.check holding orders, if matched, 
+    There are 3 kinds of orders
+    -- if exit condition is met, add a new order in the exit_orders.
+    -- if entry condition is met, add a new order in the holding_orders, the same time add a stop_loss order
+    
+    3.check holding orders,
+    compare the current high/low price and the moved predicted price. 
+    check the current volume >  the amount of order if matched,  
     -- add and recalculate positions, add to position_record
     -- record this transaction into the csv file
     4. go to next round
     """
+
+    def run(self,kline):
+
+ 
+        self.update(run,kline)
+
+        #check enter and exit condition. if yes, add orders
+        self.enter() 
+        self.exit()
+
+        # when the both exit order and new position order are triggered, we consider buy in and ignore the exit order
+        if self.check_order_condition(self.holding_orders)
+            #orders = {key: self.holding_orders[key] + self.exit_orders[key] for key in self.holding_orders}
+            
+            self.recalculate_position(self.holding_orders)
+            self.balance_calculation(self.holding_orders)
+            
+            self.add_position_record(self.holding_orders)
+            self.holding_orders.clear()
+            if self.check_order_condition(self.exit_orders):
+                self.exit_orders.clear()
+        elif self.check_order_condition(self.exit_orders):
+            self.recalculate_position(self.holding_orders)
+            self.balance_calculation(self.holding_orders)
+            self.exit_orders.clear()
+        
+            

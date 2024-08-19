@@ -1,11 +1,13 @@
 from clickhouse_driver import Client
+import 
 from trader import Trader
 from Strategy_BoostVolume import Strategy_BoostVolume
 from datetime import timedelta,datetime
 
 def main():
     trader = Strategy_BoostVolume()
-    
+    client = Client(host='your_clickhouse_host', port=9000,database='history_candles_1s')
+
     for swap in swaps:
         table_name = swap.replace("-", "_").lower()
         query = f"SELECT * FROM {table_name} ORDER BY timestamp ASC"
